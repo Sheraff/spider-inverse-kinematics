@@ -1,9 +1,9 @@
 const SPIDER_WIDTH = 60
 const SPIDER_DISTANCE_TO_GROUND = 65
-const SPIDER_UPPER_JOINT_LENGTH = 60
-const SPIDER_LOWER_JOINT_LENGTH = 110
-const SPIDER_LEG_LERP_DURATION = 375
-const SPIDER_MAX_SIMULTANEOUS_LERPS_PER_SIDE = 1
+const SPIDER_UPPER_JOINT_LENGTH = 65
+const SPIDER_LOWER_JOINT_LENGTH = 115
+const SPIDER_LEG_LERP_DURATION = 400
+const SPIDER_MAX_SIMULTANEOUS_LERPS_PER_SIDE = 2
 
 
 const canvas = document.querySelector('canvas')
@@ -134,7 +134,7 @@ function getLegShoulderX(spider, i) {
 function updateSpiderLegs(ctx, mousePos, spider, time, speed) {
 	const currentDirection = mousePos.x > spider.x ? 1 : -1
 	const maxDistance = SPIDER_LOWER_JOINT_LENGTH + SPIDER_UPPER_JOINT_LENGTH
-	const lerpDuration = SPIDER_LEG_LERP_DURATION / Math.max(1, Math.abs(speed))
+	const lerpDuration = SPIDER_LEG_LERP_DURATION / Math.max(1, Math.abs(speed ** 2))
 	spider.legs.forEach((leg, i) => {
 		if (leg.lerp) {
 			const t = (time - leg.lerp.start) / lerpDuration
@@ -148,7 +148,11 @@ function updateSpiderLegs(ctx, mousePos, spider, time, speed) {
 		}
 
 		const direction = leg.direction
-		const currentLerpsOnSide = spider.legs.reduce((sum, leg) => sum += !!((direction === leg.direction) && (leg.lerp)))
+		const currentLerpsOnSide = spider.legs.reduce((sum, leg) => {
+			if(direction === leg.direction && leg.lerp)
+				sum += 1
+			return sum
+		}, 0)
 		if (currentLerpsOnSide >= SPIDER_MAX_SIMULTANEOUS_LERPS_PER_SIDE) {
 			return
 		}
@@ -158,8 +162,8 @@ function updateSpiderLegs(ctx, mousePos, spider, time, speed) {
 		const sideIndex = i >> 1
 
 		const distanceToShoulder = Math.hypot(leg.x - shoulderX, leg.y - spider.y)
-		if (distanceToShoulder > maxDistance * 0.85 && !sameDirection) {
-			const repositionBy = maxDistance * (0.05 + sideIndex * 0.02)
+		if (distanceToShoulder > maxDistance * 0.75 && !sameDirection) {
+			const repositionBy = maxDistance * (-0.1 + sideIndex * 0.15)
 			leg.lerp = {
 				start: time,
 				from: leg.x,
@@ -169,8 +173,8 @@ function updateSpiderLegs(ctx, mousePos, spider, time, speed) {
 		}
 
 		const distanceToVertical = (leg.x - shoulderX) * leg.direction
-		if (distanceToVertical < 0.05 && sameDirection) {
-			const repositionBy = maxDistance * (0.85 + sideIndex * 0.02)
+		if (distanceToVertical < -0.05 && sameDirection) {
+			const repositionBy = maxDistance * (0.7 + sideIndex * 0.085)
 			leg.lerp = {
 				start: time,
 				from: leg.x,
