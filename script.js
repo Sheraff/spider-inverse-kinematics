@@ -196,6 +196,7 @@ function drawSpider(ctx, spider, formData) {
 	ctx.restore()
 	spider.legs.forEach((leg, i) => {
 		ctx.strokeStyle = '#000'
+		ctx.lineWidth = 2
 		const shoulderX = getLegShoulderX(spider, i)
 		const shoulderY = spider.y
 		const legX = leg.x
@@ -216,12 +217,13 @@ function drawSpider(ctx, spider, formData) {
 		ctx.stroke()
 
 		if(formData.geometry) {
-			ctx.strokeStyle = leg.direction === 1 ? '#090' : '#900'
+			ctx.lineWidth = 1
+			ctx.strokeStyle = leg.direction === 1 ? '#0907' : '#9007'
 			ctx.beginPath()
 			ctx.arc(shoulderX, shoulderY, SPIDER_UPPER_JOINT_LENGTH, 0, Math.PI * 2)
 			ctx.stroke()
 
-			ctx.strokeStyle = leg.direction === 1 ? '#0f0' : '#f00'
+			ctx.strokeStyle = leg.direction === 1 ? '#0f07' : '#f007'
 			ctx.beginPath()
 			ctx.arc(legX, legY, SPIDER_LOWER_JOINT_LENGTH, 0, Math.PI * 2)
 			ctx.stroke()
