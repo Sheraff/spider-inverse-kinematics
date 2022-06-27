@@ -22,5 +22,9 @@ type MousePos = {
 }
 
 type UiFormData = {
-	geometry: boolean
+	geometry: boolean,
+	elevation: number,
+	upper: number,
+	lower: number,
+	ground: number,
 }

@@ -1,9 +1,5 @@
 const SPIDER_WIDTH = 60
-const SPIDER_DISTANCE_TO_GROUND = 65
-const SPIDER_UPPER_JOINT_LENGTH = 65
-const SPIDER_LOWER_JOINT_LENGTH = 115
 const SPIDER_LEG_LERP_DURATION = 400
-const SPIDER_MAX_SIMULTANEOUS_LERPS_PER_SIDE = 2
 
 
 const canvas = document.querySelector('canvas')
@@ -26,10 +22,12 @@ if(!form)
  * @param {HTMLFormElement} form
  */
 void function (ctx, form) {
+	const formData = getFormData(form)
+
 	/** @type {Spider} */
 	const spider = {
 		x: ctx.canvas.width / 2,
-		y: ctx.canvas.height - SPIDER_DISTANCE_TO_GROUND,
+		y: ctx.canvas.height - formData.elevation,
 		speed: 0,
 		legs: [
 			{ x: ctx.canvas.width / 2 - 40, y: ctx.canvas.height, direction: -1, lerp: null },
@@ -48,8 +46,6 @@ void function (ctx, form) {
 		y: spider.y,
 	}
 
-	const formData = getFormData(form)
-
 	ui(form, formData)
 	update(ctx, mousePos, spider)
 	draw(ctx, mousePos, formData, spider)
@@ -61,7 +57,7 @@ void function (ctx, form) {
  * @param {UiFormData} formData
  */
 function ui(form, formData) {
-	form.addEventListener('change', () => {
+	form.addEventListener('input', () => {
 		Object.assign(formData, getFormData(form))
 	})
 }
@@ -71,9 +67,12 @@ function ui(form, formData) {
  * @returns {UiFormData}
  */
 function getFormData(form) {
-	const geometry = form.elements.geometry.checked
 	return {
-		geometry
+		geometry: form.elements.geometry.checked,
+		elevation: Number(form.elements.elevation.value),
+		upper: Number(form.elements.upper.value),
+		lower: Number(form.elements.lower.value),
+		ground: 4 - Number(form.elements.ground.value),
 	}
 }
 
@@ -104,8 +103,8 @@ function draw(ctx, mousePos, formData, spider) {
 			const delta = lastTime ? time - lastTime : 0
 			const speed = (mousePos.x - spider.x) * delta / 1000
 			spider.x += speed
-			spider.y = ctx.canvas.height - SPIDER_DISTANCE_TO_GROUND - Math.sin(time / 400) * 3 + Math.sin(spider.x / 30) * 4
-			updateSpiderLegs(ctx, mousePos, spider, time, speed)
+			spider.y = ctx.canvas.height - formData.elevation - Math.sin(time / 400) * 3 + Math.sin(spider.x / 30) * 4
+			updateSpiderLegs(ctx, mousePos, spider, formData, time, speed)
 			ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
 			drawSpider(ctx, spider, formData)
 			loop(time)
@@ -129,18 +128,21 @@ function getLegShoulderX(spider, i) {
  * @param {CanvasRenderingContext2D} ctx
  * @param {MousePos} mousePos
  * @param {Spider} spider
+ * @param {UiFormData} formData
  * @param {number} time
+ * @param {number} speed
  */
-function updateSpiderLegs(ctx, mousePos, spider, time, speed) {
+function updateSpiderLegs(ctx, mousePos, spider, formData, time, speed) {
 	const currentDirection = mousePos.x > spider.x ? 1 : -1
-	const maxDistance = SPIDER_LOWER_JOINT_LENGTH + SPIDER_UPPER_JOINT_LENGTH
+	const maxDistance = formData.lower + formData.upper
 	const lerpDuration = SPIDER_LEG_LERP_DURATION / Math.max(1, Math.abs(speed ** 2))
 	spider.legs.forEach((leg, i) => {
 		if (leg.lerp) {
-			const t = (time - leg.lerp.start) / lerpDuration
+			const delta = time - leg.lerp.start
+			const t = delta / lerpDuration
 			leg.x = lerp(leg.lerp.from, leg.lerp.to, t)
 			leg.y = ctx.canvas.height - lerp(0, Math.PI, t, Math.sin) * 6
-			if ((leg.x - leg.lerp.to) * Math.sign(leg.lerp.to - leg.lerp.from) >= 0) {
+			if (t >= 1) {
 				leg.lerp = null
 				leg.y = ctx.canvas.height
 			}
@@ -153,7 +155,7 @@ function updateSpiderLegs(ctx, mousePos, spider, time, speed) {
 				sum += 1
 			return sum
 		}, 0)
-		if (currentLerpsOnSide >= SPIDER_MAX_SIMULTANEOUS_LERPS_PER_SIDE) {
+		if (currentLerpsOnSide >= formData.ground) {
 			return
 		}
 
@@ -210,8 +212,8 @@ function drawSpider(ctx, spider, formData) {
 			shoulderY,
 			legX,
 			legY,
-			SPIDER_UPPER_JOINT_LENGTH,
-			SPIDER_LOWER_JOINT_LENGTH,
+			formData.upper,
+			formData.lower,
 			leg.direction
 		)
 		ctx.beginPath()
@@ -224,12 +226,12 @@ function drawSpider(ctx, spider, formData) {
 			ctx.lineWidth = 1
 			ctx.strokeStyle = leg.direction === 1 ? '#0907' : '#9007'
 			ctx.beginPath()
-			ctx.arc(shoulderX, shoulderY, SPIDER_UPPER_JOINT_LENGTH, 0, Math.PI * 2)
+			ctx.arc(shoulderX, shoulderY, formData.upper, 0, Math.PI * 2)
 			ctx.stroke()
 
 			ctx.strokeStyle = leg.direction === 1 ? '#0f07' : '#f007'
 			ctx.beginPath()
-			ctx.arc(legX, legY, SPIDER_LOWER_JOINT_LENGTH, 0, Math.PI * 2)
+			ctx.arc(legX, legY, formData.lower, 0, Math.PI * 2)
 			ctx.stroke()
 		}
 	})
