@@ -72,7 +72,7 @@ function draw(ctx, mousePos, spider) {
 		requestAnimationFrame((time) => {
 			const delta = lastTime ? time - lastTime : 0
 			spider.x += (mousePos.x - spider.x) * delta / 1000
-			spider.y = ctx.canvas.height - SPIDER_DISTANCE_TO_GROUND - Math.sin(spider.x / 20 - ctx.canvas.width / 2) * 5
+			spider.y = ctx.canvas.height - SPIDER_DISTANCE_TO_GROUND - Math.sin(time / 400) * 3 + Math.sin(spider.x / 30) * 4
 			updateSpiderLegs(mousePos, spider)
 			ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
 			drawSpider(ctx, spider)
