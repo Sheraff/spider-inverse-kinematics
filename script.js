@@ -103,16 +103,19 @@ function updateSpiderLegs(mousePos, spider) {
 	spider.legs.forEach((leg, i) => {
 		const shoulderX = getLegShoulderX(spider, i)
 		const sameDirection = currentDirection === leg.direction
+		const sideIndex = i >> 1
 
 		const distanceToShoulder = Math.hypot(leg.x - shoulderX, leg.y - spider.y)
 		if (distanceToShoulder > maxDistance * 0.85 && !sameDirection) {
-			leg.x = shoulderX + leg.direction * maxDistance * 0.05 + Math.random()/10*maxDistance
+			const repositionBy = maxDistance * (0.05 + sideIndex * 0.02)
+			leg.x = shoulderX + leg.direction * repositionBy
 			return
 		}
 
 		const distanceToVertical = (leg.x - shoulderX) * leg.direction
 		if (distanceToVertical < 0.05 && sameDirection) {
-			leg.x = shoulderX + leg.direction * maxDistance * 0.85 - Math.random()/10*maxDistance
+			const repositionBy = maxDistance * (0.85 + sideIndex * 0.02)
+			leg.x = shoulderX + leg.direction * repositionBy
 			return
 		}
 	})
