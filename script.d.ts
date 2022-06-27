@@ -15,3 +15,7 @@ type MousePos = {
 	x: number
 	y: number
 }
+
+type UiFormData = {
+	geometry: boolean
+}

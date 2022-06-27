@@ -15,10 +15,15 @@ const ctx = canvas.getContext('2d')
 if(!ctx)
 	throw new Error('No context found')
 
+const form = document.querySelector('form')
+if(!form)
+	throw new Error('No form found')
+
 /**
  * @param {CanvasRenderingContext2D} ctx
+ * @param {HTMLFormElement} form
  */
-void function (ctx) {
+void function (ctx, form) {
 	/** @type {Spider} */
 	const spider = {
 		x: ctx.canvas.width / 2,
@@ -41,10 +46,34 @@ void function (ctx) {
 		y: spider.y,
 	}
 
-	update(ctx, mousePos, spider)
-	draw(ctx, mousePos, spider)
-}(ctx)
+	const formData = getFormData(form)
 
+	ui(form, formData)
+	update(ctx, mousePos, spider)
+	draw(ctx, mousePos, formData, spider)
+}(ctx, form)
+
+
+/**
+ * @param {HTMLFormElement} form
+ * @param {UiFormData} formData
+ */
+function ui(form, formData) {
+	form.addEventListener('change', () => {
+		Object.assign(formData, getFormData(form))
+	})
+}
+
+/**
+ * @param {HTMLFormElement} form
+ * @returns {UiFormData}
+ */
+function getFormData(form) {
+	const geometry = form.elements.geometry.checked
+	return {
+		geometry
+	}
+}
 
 /**
  * @param {CanvasRenderingContext2D} ctx
@@ -61,9 +90,10 @@ function update(ctx, mousePos, spider) {
 /**
  * @param {CanvasRenderingContext2D} ctx
  * @param {MousePos} mousePos
+ * @param {UiFormData} formData
  * @param {Spider} spider
  */
-function draw(ctx, mousePos, spider) {
+function draw(ctx, mousePos, formData, spider) {
 	/**
 	 * @param {number} lastTime
 	 */
@@ -74,7 +104,7 @@ function draw(ctx, mousePos, spider) {
 			spider.y = ctx.canvas.height - SPIDER_DISTANCE_TO_GROUND - Math.sin(time / 400) * 3 + Math.sin(spider.x / 30) * 4
 			updateSpiderLegs(mousePos, spider)
 			ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
-			drawSpider(ctx, spider)
+			drawSpider(ctx, spider, formData)
 			loop(time)
 		})
 	}
@@ -123,10 +153,10 @@ function updateSpiderLegs(mousePos, spider) {
 /**
  * @param {CanvasRenderingContext2D} ctx
  * @param {Spider} spider
+ * @param {UiFormData} formData
  */
-function drawSpider(ctx, spider) {
+function drawSpider(ctx, spider, formData) {
 	ctx.fillStyle = '#000'
-	ctx.strokeStyle = '#000'
 	ctx.save()
 	ctx.translate(spider.x, spider.y)
 	ctx.beginPath()
@@ -134,6 +164,7 @@ function drawSpider(ctx, spider) {
 	ctx.fill()
 	ctx.restore()
 	spider.legs.forEach((leg, i) => {
+		ctx.strokeStyle = '#000'
 		const shoulderX = getLegShoulderX(spider, i)
 		const elbow = inverseKinematicsWithTwoJoints(
 			shoulderX,
@@ -144,20 +175,23 @@ function drawSpider(ctx, spider) {
 			SPIDER_LOWER_JOINT_LENGTH,
 			leg.direction
 		)
-		// ctx.strokeStyle = leg.direction === 1 ? '#0f0' : '#f00'
 		ctx.beginPath()
 		ctx.moveTo(shoulderX, spider.y)
 		ctx.lineTo(elbow[0], elbow[1])
 		ctx.lineTo(leg.x, leg.y)
 		ctx.stroke()
 
-		// ctx.beginPath()
-		// ctx.arc(x, spider.y, SPIDER_UPPER_JOINT_LENGTH, 0, Math.PI * 2)
-		// ctx.stroke()
+		if(formData.geometry) {
+			ctx.strokeStyle = leg.direction === 1 ? '#090' : '#900'
+			ctx.beginPath()
+			ctx.arc(shoulderX, spider.y, SPIDER_UPPER_JOINT_LENGTH, 0, Math.PI * 2)
+			ctx.stroke()
 
-		// ctx.beginPath()
-		// ctx.arc(leg.x, y, SPIDER_LOWER_JOINT_LENGTH, 0, Math.PI * 2)
-		// ctx.stroke()
+			ctx.strokeStyle = leg.direction === 1 ? '#0f0' : '#f00'
+			ctx.beginPath()
+			ctx.arc(leg.x, leg.y, SPIDER_LOWER_JOINT_LENGTH, 0, Math.PI * 2)
+			ctx.stroke()
+		}
 	})
 }
 
