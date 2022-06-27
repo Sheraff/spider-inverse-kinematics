@@ -8,7 +8,12 @@ type Spider = {
 type Leg = {
 	x: number,
 	y: number,
-	direction: 1 | -1
+	direction: 1 | -1,
+	lerp: null | {
+		start: number,
+		from: number,
+		to: number,
+	}
 }
 
 type MousePos = {

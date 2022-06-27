@@ -2,6 +2,8 @@ const SPIDER_WIDTH = 60
 const SPIDER_DISTANCE_TO_GROUND = 65
 const SPIDER_UPPER_JOINT_LENGTH = 60
 const SPIDER_LOWER_JOINT_LENGTH = 110
+const SPIDER_LEG_LERP_DURATION = 375
+const SPIDER_MAX_SIMULTANEOUS_LERPS_PER_SIDE = 1
 
 
 const canvas = document.querySelector('canvas')
@@ -30,14 +32,14 @@ void function (ctx, form) {
 		y: ctx.canvas.height - SPIDER_DISTANCE_TO_GROUND,
 		speed: 0,
 		legs: [
-			{ x: ctx.canvas.width / 2 - 40, y: ctx.canvas.height, direction: -1 },
-			{ x: ctx.canvas.width / 2 + 40, y: ctx.canvas.height, direction: 1 },
-			{ x: ctx.canvas.width / 2 - 80, y: ctx.canvas.height, direction: -1 },
-			{ x: ctx.canvas.width / 2 + 80, y: ctx.canvas.height, direction: 1 },
-			{ x: ctx.canvas.width / 2 - 120, y: ctx.canvas.height, direction: -1 },
-			{ x: ctx.canvas.width / 2 + 120, y: ctx.canvas.height, direction: 1 },
-			{ x: ctx.canvas.width / 2 - 160, y: ctx.canvas.height, direction: -1 },
-			{ x: ctx.canvas.width / 2 + 160, y: ctx.canvas.height, direction: 1 },
+			{ x: ctx.canvas.width / 2 - 40, y: ctx.canvas.height, direction: -1, lerp: null },
+			{ x: ctx.canvas.width / 2 + 40, y: ctx.canvas.height, direction: 1, lerp: null },
+			{ x: ctx.canvas.width / 2 - 80, y: ctx.canvas.height, direction: -1, lerp: null },
+			{ x: ctx.canvas.width / 2 + 80, y: ctx.canvas.height, direction: 1, lerp: null },
+			{ x: ctx.canvas.width / 2 - 120, y: ctx.canvas.height, direction: -1, lerp: null },
+			{ x: ctx.canvas.width / 2 + 120, y: ctx.canvas.height, direction: 1, lerp: null },
+			{ x: ctx.canvas.width / 2 - 160, y: ctx.canvas.height, direction: -1, lerp: null },
+			{ x: ctx.canvas.width / 2 + 160, y: ctx.canvas.height, direction: 1, lerp: null },
 		],
 	}
 	/** @type {MousePos} */
@@ -100,9 +102,10 @@ function draw(ctx, mousePos, formData, spider) {
 	function loop(lastTime) {
 		requestAnimationFrame((time) => {
 			const delta = lastTime ? time - lastTime : 0
-			spider.x += (mousePos.x - spider.x) * delta / 1000
+			const speed = (mousePos.x - spider.x) * delta / 1000
+			spider.x += speed
 			spider.y = ctx.canvas.height - SPIDER_DISTANCE_TO_GROUND - Math.sin(time / 400) * 3 + Math.sin(spider.x / 30) * 4
-			updateSpiderLegs(mousePos, spider)
+			updateSpiderLegs(ctx, mousePos, spider, time, speed)
 			ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
 			drawSpider(ctx, spider, formData)
 			loop(time)
@@ -123,28 +126,56 @@ function getLegShoulderX(spider, i) {
 }
 
 /**
+ * @param {CanvasRenderingContext2D} ctx
  * @param {MousePos} mousePos
  * @param {Spider} spider
+ * @param {number} time
  */
-function updateSpiderLegs(mousePos, spider) {
+function updateSpiderLegs(ctx, mousePos, spider, time, speed) {
 	const currentDirection = mousePos.x > spider.x ? 1 : -1
 	const maxDistance = SPIDER_LOWER_JOINT_LENGTH + SPIDER_UPPER_JOINT_LENGTH
+	const lerpDuration = SPIDER_LEG_LERP_DURATION / Math.max(1, Math.abs(speed))
 	spider.legs.forEach((leg, i) => {
 		const shoulderX = getLegShoulderX(spider, i)
 		const sameDirection = currentDirection === leg.direction
 		const sideIndex = i >> 1
 
+		if (leg.lerp) {
+			const t = (time - leg.lerp.start) / lerpDuration
+			leg.x = lerp(leg.lerp.from, leg.lerp.to, t)
+			leg.y = ctx.canvas.height - lerp(0, Math.PI, t, Math.sin) * 6
+			if ((leg.x - leg.lerp.to) * Math.sign(leg.lerp.to - leg.lerp.from) > 0) {
+				leg.lerp = null
+				leg.y = ctx.canvas.height
+			}
+			return
+		}
+
+		const direction = leg.direction
+		const currentLerpsOnSide = spider.legs.reduce((sum, leg) => sum += !!((direction === leg.direction) && (leg.lerp)))
+		if (currentLerpsOnSide >= SPIDER_MAX_SIMULTANEOUS_LERPS_PER_SIDE) {
+			return
+		}
+
 		const distanceToShoulder = Math.hypot(leg.x - shoulderX, leg.y - spider.y)
 		if (distanceToShoulder > maxDistance * 0.85 && !sameDirection) {
 			const repositionBy = maxDistance * (0.05 + sideIndex * 0.02)
-			leg.x = shoulderX + leg.direction * repositionBy
+			leg.lerp = {
+				start: time,
+				from: leg.x,
+				to: shoulderX + leg.direction * repositionBy
+			}
 			return
 		}
 
 		const distanceToVertical = (leg.x - shoulderX) * leg.direction
 		if (distanceToVertical < 0.05 && sameDirection) {
 			const repositionBy = maxDistance * (0.85 + sideIndex * 0.02)
-			leg.x = shoulderX + leg.direction * repositionBy
+			leg.lerp = {
+				start: time,
+				from: leg.x,
+				to: shoulderX + leg.direction * repositionBy
+			}
 			return
 		}
 	})
@@ -166,33 +197,40 @@ function drawSpider(ctx, spider, formData) {
 	spider.legs.forEach((leg, i) => {
 		ctx.strokeStyle = '#000'
 		const shoulderX = getLegShoulderX(spider, i)
+		const shoulderY = spider.y
+		const legX = leg.x
+		const legY = leg.y
 		const elbow = inverseKinematicsWithTwoJoints(
 			shoulderX,
-			spider.y,
-			leg.x,
-			leg.y,
+			shoulderY,
+			legX,
+			legY,
 			SPIDER_UPPER_JOINT_LENGTH,
 			SPIDER_LOWER_JOINT_LENGTH,
 			leg.direction
 		)
 		ctx.beginPath()
-		ctx.moveTo(shoulderX, spider.y)
+		ctx.moveTo(shoulderX, shoulderY)
 		ctx.lineTo(elbow[0], elbow[1])
-		ctx.lineTo(leg.x, leg.y)
+		ctx.lineTo(legX, legY)
 		ctx.stroke()
 
 		if(formData.geometry) {
 			ctx.strokeStyle = leg.direction === 1 ? '#090' : '#900'
 			ctx.beginPath()
-			ctx.arc(shoulderX, spider.y, SPIDER_UPPER_JOINT_LENGTH, 0, Math.PI * 2)
+			ctx.arc(shoulderX, shoulderY, SPIDER_UPPER_JOINT_LENGTH, 0, Math.PI * 2)
 			ctx.stroke()
 
 			ctx.strokeStyle = leg.direction === 1 ? '#0f0' : '#f00'
 			ctx.beginPath()
-			ctx.arc(leg.x, leg.y, SPIDER_LOWER_JOINT_LENGTH, 0, Math.PI * 2)
+			ctx.arc(legX, legY, SPIDER_LOWER_JOINT_LENGTH, 0, Math.PI * 2)
 			ctx.stroke()
 		}
 	})
+}
+
+function lerp(from, to, t, easing = a => a) {
+	return from + (to - from) * easing(t)
 }
 
 /**
