@@ -135,13 +135,15 @@ function getLegShoulderX(spider, i) {
 function updateSpiderLegs(ctx, mousePos, spider, formData, time, speed) {
 	const currentDirection = mousePos.x > spider.x ? 1 : -1
 	const maxDistance = formData.lower + formData.upper
-	const lerpDuration = SPIDER_LEG_LERP_DURATION / Math.max(1, Math.abs(speed ** 2))
+	const speedWeight = formData.ground === 1 ? 1.9 : 0.675 // magic numbers
+	const speedCoefficient = 1 / (1 + Math.abs(speed * speedWeight))
+	const lerpDuration = SPIDER_LEG_LERP_DURATION * Math.min(1, speedCoefficient)
 	spider.legs.forEach((leg, i) => {
 		if (leg.lerp) {
 			const delta = time - leg.lerp.start
 			const t = delta / lerpDuration
 			leg.x = lerp(leg.lerp.from, leg.lerp.to, t)
-			leg.y = ctx.canvas.height - lerp(0, Math.PI, t, Math.sin) * 6
+			leg.y = ctx.canvas.height - lerp(0, 6, t, easeSin)
 			if (t >= 1) {
 				leg.lerp = null
 				leg.y = ctx.canvas.height
@@ -200,6 +202,7 @@ function drawSpider(ctx, spider, formData) {
 	ctx.arc(0, 0, SPIDER_WIDTH / 2, 0, Math.PI * 2)
 	ctx.fill()
 	ctx.restore()
+	ctx.lineJoin = 'round'
 	spider.legs.forEach((leg, i) => {
 		ctx.strokeStyle = '#000'
 		ctx.lineWidth = 2
@@ -237,8 +240,18 @@ function drawSpider(ctx, spider, formData) {
 	})
 }
 
+/**
+ * @param {number} from
+ * @param {number} to
+ * @param {number} t [0 - 1]
+ * @param {(t: number) => number} easing ([0-1]) -> [0-1]
+ */
 function lerp(from, to, t, easing = a => a) {
 	return from + (to - from) * Math.min(1, easing(t))
+}
+
+function easeSin(t) {
+	return Math.sin(t * Math.PI)
 }
 
 /**
