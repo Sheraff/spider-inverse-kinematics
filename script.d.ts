@@ -27,4 +27,5 @@ type UiFormData = {
 	upper: number,
 	lower: number,
 	ground: number,
+	yOff: number,
 }

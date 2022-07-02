@@ -73,6 +73,7 @@ function getFormData(form) {
 		upper: Number(form.elements.upper.value),
 		lower: Number(form.elements.lower.value),
 		ground: 4 - Number(form.elements.ground.value),
+		yOff: Number(form.elements.yOff.value),
 	}
 }
 
@@ -143,7 +144,7 @@ function updateSpiderLegs(ctx, mousePos, spider, formData, time, speed) {
 			const delta = time - leg.lerp.start
 			const t = delta / lerpDuration
 			leg.x = lerp(leg.lerp.from, leg.lerp.to, t)
-			leg.y = ctx.canvas.height - lerp(0, 6, t, easeSin)
+			leg.y = ctx.canvas.height - lerp(0, formData.yOff, t, easeSin)
 			if (t >= 1) {
 				leg.lerp = null
 				leg.y = ctx.canvas.height
